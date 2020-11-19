@@ -35,16 +35,16 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
-    # tags$head(tags$style(
-    #   HTML("
-    #      #buttons {
-    #       display: flex;
-    #       # align-items: center;
-    #       # justify-content: center;
-    #       vertical-align: middle;
-    #      }
-    #      ")
-    # )),
+    tags$head(tags$style(
+      HTML("
+          #myImage {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 40%;
+          }
+         ")
+    )),
 
     ### changing theme
     shinyDashboardThemes(
@@ -61,7 +61,6 @@ ui <- dashboardPage(
       tabItem(
         "heatmaps",
         fluidRow(
-
           box(
             width = 12,
             column(4, selectInput("value",
@@ -78,8 +77,9 @@ ui <- dashboardPage(
               4,
               sliderInput("fdr",
                 label = "FDR (log10) threshold",
-                min = -10,
+                min = -5,
                 max = -2,
+                step = 0.5,
                 value = -2
               )
             )
@@ -106,29 +106,54 @@ ui <- dashboardPage(
                 value = 12
               )
             ),
-            column(4, style = "margin-top: 25px;",
-                   actionButton("plot",
-                                  label = "plot",
-                                  width = "100%"
-
-            )),
+            column(4,
+              style = "margin-top: 25px;",
+              actionButton("plot",
+                label = "plot",
+                width = "100%"
+              )
+            ),
           )
         ),
         fluidRow(
           box(
             width = 12,
             plotOutput("heatmap")
-
-          ))
-
+          )
+        )
       ),
       tabItem(
         "rest",
+
         fluidRow(
-          imageOutput("myImage"),
           box(
-          HTML("<spam style=color:red;>I am working on this too</spam>"))
-        ))
+            width = 12,
+            column(4, selectInput("gs2",
+                                  label = "Gene Set Database",
+                                  choices = "",
+                                  multiple = FALSE
+            )),
+            column(4, selectInput("contrast",
+              label = "contrast",
+              choices = "",
+              multiple = FALSE
+            )),
+            column(4, selectInput("pathway",
+              label = "Pathway",
+              choices = "",
+              multiple = FALSE
+            ))
+          )
+        ),
+        fluidRow(
+          box(width = 12,
+              column(12,
+                     align = "center",
+                     imageOutput("myImage")
+              )
+          )
+        )
+      )
     )
   )
 )
@@ -142,6 +167,7 @@ server <- function(input, output, session) {
 
   # reactive values -------------
   dat <- reactiveVal(NULL) # imported data
+  path_data <- reactiveVal(NULL) # imported data
 
   observeEvent(
     eventExpr = {
@@ -157,7 +183,8 @@ server <- function(input, output, session) {
           easyClose = FALSE
         ))
 
-        dat_rich <- rich_aggregate(path = parseDirPath(volumes, input$directory))
+        path_data(parseDirPath(volumes, input$directory))
+        dat_rich <- rich_aggregate(path = path_data())
         dat(dat_rich)
         removeModal()
       }
@@ -172,54 +199,98 @@ server <- function(input, output, session) {
   })
 
 
+  # Update selectors ----
   observe({
     updateSelectInput(session, "gs", choices = unique(dat()$gs))
+    updateSelectInput(session, "gs2", choices = unique(dat()$gs))
   })
 
-  pheatmap <- eventReactive(input$plot,{
+  observe({
+    if(!is.null(req(input$gs2))) {
+      updateSelectInput(session, "contrast", choices = unique(dat()$contrast))
+    }
+  })
 
+  observe({
+    if(!is.null(req(input$contrast))) {
+      updateSelectInput(session, "pathway", choices = unique(dat()$description))
+    }
+  })
+
+
+
+
+  pheatmap <- eventReactive(input$plot, {
     rich_df <- as.data.frame(req(dat()))
 
-    rich_plot  <- tryCatch(
-          rich_pheatmap(dat = rich_df,
-                        fdr_threshold = 10^input$fdr,
-                        gs = input$gs,
-                        value = input$value,
-                        fontsize_row = input$fontsize_row,
-                        fontsize_col= input$fontsize_col),
-                       error = function(c) conditionMessage(c)
-      )
+    rich_plot <- tryCatch(
+      rich_pheatmap(
+        dat = rich_df,
+        fdr_threshold = 10^input$fdr,
+        gs = input$gs,
+        value = input$value,
+        fontsize_row = input$fontsize_row,
+        fontsize_col = input$fontsize_col
+      ),
+      error = function(c) conditionMessage(c)
+    )
 
-    if (rich_plot == "must have n >= 2 objects to cluster"){
-      to_plot <-  ggplot() +
-                theme_void() +
-                geom_text(aes(0 , 0, label = "No enough clusters to plot with these filtering parameters!"), size = 10) +
-                xlab(NULL)
-
+    if (rich_plot == "must have n >= 2 objects to cluster") {
+      to_plot <- ggplot() +
+        theme_void() +
+        geom_text(aes(0, 0, label = "No enough clusters to plot with these filtering parameters!"), size = 10) +
+        xlab(NULL)
     } else {
-      to_plot <-   rich_plot
+      to_plot <- rich_plot
     }
 
     to_plot
   })
 
-
   output$heatmap <- renderPlot({
     pheatmap()
   })
 
-  output$myImage <- renderImage({
-    # When input$n is 3, filename is ./images/image3.jpeg
-    filename <- normalizePath("/Users/heverz/Desktop/GSEA_PreRanked_EpitheliumOnly/Enterocytes_dkonormal/Biocarta/Enterocytes_dkonormal_Biocarta.GseaPreranked.1605217181475/enplot_BIOCARTA_MTOR_PATHWAY_99.png")
 
-    # Return a list containing the filename and alt text
-    list(src = filename,
-         alt = "x")
+  # Render GSEA plots
+  observeEvent(input$contrast,
+               ignoreNULL = TRUE,
+               ignoreInit = TRUE,
 
-  }, deleteFile = FALSE)
+           handlerExpr = {
+              browser()
+
+            rich_png <-  rich_find(path = path_data(), reg_expr = "enplot.*png$")
+            to_rename <- names(rich_png)[ncol(rich_png)- 1]
+            names(rich_png)[names(rich_png) == to_rename] <-  "pathway"
+            rich_png$pathway <- sub("enplot_", "",
+                                        sub("_[0-9]*\\.png", "", rich_png$pathway, perl = TRUE))
+            rich_png <- tidyr::separate(rich_png, col = "id", into = c("contrast", "gs"), sep = "~")
+
+              },
 
 
+  )
 
+
+  output$myImage <- renderImage(
+    {
+
+      # When input$n is 3, filename is ./images/image3.jpeg
+      filename <- normalizePath("/Users/heverz/Desktop/GSEA_PreRanked_EpitheliumOnly/Enterocytes_dkonormal/Biocarta/Enterocytes_dkonormal_Biocarta.GseaPreranked.1605217181475/enplot_BIOCARTA_MTOR_PATHWAY_99.png")
+
+      # Return a list containing the filename and alt text
+      list(
+        src = filename,
+        alt = "x",
+        height = "100%",
+        display = "block"
+        # margin-left = "auto",
+        # margin-right = "auto"
+      )
+    },
+    deleteFile = FALSE
+  )
 }
 
 # Run the application

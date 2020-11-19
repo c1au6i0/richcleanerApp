@@ -352,6 +352,13 @@
       "Repository": "CRAN",
       "Hash": "82e52d2c6e674764ffb122d084afa96b"
     },
+    "pbapply": {
+      "Package": "pbapply",
+      "Version": "1.4-3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "52f8028b028076bc3b7ee5d6251abf0d"
+    },
     "pheatmap": {
       "Package": "pheatmap",
       "Version": "1.0.12",
@@ -445,15 +452,15 @@
     },
     "richcleaner": {
       "Package": "richcleaner",
-      "Version": "0.0.0.94",
+      "Version": "0.0.0.96",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteRepo": "richcleaner",
       "RemoteUsername": "c1au6i0",
       "RemoteRef": "HEAD",
-      "RemoteSha": "5e145e3dba836fb9c2ead466328d5f0c6d05f810",
-      "Hash": "7edb610ca42d1df3abf919c1e2606460"
+      "RemoteSha": "901bdafa026ed2c86abbd875292c1cc90c8703c0",
+      "Hash": "f41e9b0c9117c40c5779dcb63bfc1de8"
     },
     "rlang": {
       "Package": "rlang",
