@@ -167,7 +167,7 @@ server <- function(input, output, session) {
 
   # reactive values -------------
   dat <- reactiveVal(NULL) # imported data
-  path_data <- reactiveVal(NULL) # imported data
+  path_data <- reactiveVal(NULL) # path data
 
   observeEvent(
     eventExpr = {
@@ -207,13 +207,15 @@ server <- function(input, output, session) {
 
   observe({
     if(!is.null(req(input$gs2))) {
-      updateSelectInput(session, "contrast", choices = unique(dat()$contrast))
+      avail_contr <- unique(dat()$contrast[dat()$gs == input$gs2])
+      updateSelectInput(session, "contrast", choices = avail_contr)
     }
   })
 
   observe({
     if(!is.null(req(input$contrast))) {
-      updateSelectInput(session, "pathway", choices = unique(dat()$description))
+      avail_path <-  unique(dat()$description[dat()$gs == input$gs2 & dat()$contrast == input$contrast])
+      updateSelectInput(session, "pathway", choices = avail_path)
     }
   })
 
@@ -253,12 +255,9 @@ server <- function(input, output, session) {
 
 
   # Render GSEA plots
-  observeEvent(input$contrast,
+  path_to_png <- eventReactive(input$pathway,
                ignoreNULL = TRUE,
-               ignoreInit = TRUE,
-
-           handlerExpr = {
-              browser()
+           valueExpr = {
 
             rich_png <-  rich_find(path = path_data(), reg_expr = "enplot.*png$")
             to_rename <- names(rich_png)[ncol(rich_png)- 1]
@@ -267,6 +266,8 @@ server <- function(input, output, session) {
                                         sub("_[0-9]*\\.png", "", rich_png$pathway, perl = TRUE))
             rich_png <- tidyr::separate(rich_png, col = "id", into = c("contrast", "gs"), sep = "~")
 
+            path_to_png <- rich_png$file[rich_png$contrast == req(input$contrast) & rich_png$gs == req(input$gs2) & rich_png$pathway == req(input$pathway)]
+            path_to_png
               },
 
 
@@ -276,8 +277,7 @@ server <- function(input, output, session) {
   output$myImage <- renderImage(
     {
 
-      # When input$n is 3, filename is ./images/image3.jpeg
-      filename <- normalizePath("/Users/heverz/Desktop/GSEA_PreRanked_EpitheliumOnly/Enterocytes_dkonormal/Biocarta/Enterocytes_dkonormal_Biocarta.GseaPreranked.1605217181475/enplot_BIOCARTA_MTOR_PATHWAY_99.png")
+      filename <- normalizePath(path_to_png())
 
       # Return a list containing the filename and alt text
       list(
