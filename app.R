@@ -1,3 +1,4 @@
+library(here)
 library(shiny)
 library(richcleaner)
 library(shinydashboard)
@@ -9,6 +10,11 @@ library(shinycssloaders)
 library(DT)
 library(ggplot2)
 library(dplyr)
+library(rdrop2)
+
+# load MO data for example
+# drop_auth()
+# rdrop2::drop_download(path = "MechPred/USER/claudio/example_richcleaner", local_path = here())
 
 
 jsResetCode <- "shinyjs.reset = function() {history.go(0)}"
@@ -65,7 +71,7 @@ ui <- dashboardPage(
             width = 12,
             column(4, selectInput("value",
               label = "Value to plot",
-              choices = c("fdr_q_val", "nes", "nom_p_val", "n_logp_sign"),
+              choices = c("n_logp_sign", "fdr_q_val", "nes", "nom_p_val"),
               multiple = FALSE
             )),
             column(4, selectInput("gs",
